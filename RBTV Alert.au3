@@ -359,10 +359,10 @@ Func __StringToBool(Const ByRef $sString)
 	Return $sString = "True"
 EndFunc   ;==>__StringToBool
 
-Func _DebugWrite(Const $Dbg_text)
-	Local $FileHandle = FileOpen($sDebugLogPath, $FO_APPEND)
-	FileWrite($FileHandle, "<" & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC & "> " & $Dbg_text & @CRLF)
-	FileClose($FileHandle)
+Func _DebugWrite(Const ByRef $sDbgText)
+	Local $fHandle = FileOpen($sDebugLogPath, $FO_APPEND + $FO_CREATEPATH)
+	FileWrite($fHandle, "<" & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC & "> " & $sDbgText & @CRLF)
+	FileClose($fHandle)
 EndFunc   ;==>_DebugWrite
 
 Func _DebugErase()
