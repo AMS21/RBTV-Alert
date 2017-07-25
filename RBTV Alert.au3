@@ -352,7 +352,7 @@ Func _IsDateInTheFuture(Const ByRef $Date)
 EndFunc   ;==>_IsDateInTheFuture
 
 Func _IsFirstLaunch()
-	Return FileExists($sInstallPath) Or FileExists($sIniPath)
+	Return Not (FileExists($sInstallPath) Or FileExists($sIniPath))
 EndFunc   ;==>_IsFirstLaunch
 
 Func __StringToBool(Const ByRef $sString)
