@@ -281,7 +281,7 @@ Func _CreateDefaultConfig()
 	_DebugWrite("Creating default config")
 
 	IniWrite($sIniPath, "Config", "AlertLiveOnly", "True")
-	IniWrite($sIniPath, "Config", "AlerNames", "Pen & Paper")
+	IniWrite($sIniPath, "Config", "AlertNames", "Pen & Paper")
 	IniWrite($sIniPath, "Config", "DateDiff", 3)
 	IniWrite($sIniPath, "Config", "UseSSL", "False")
 EndFunc   ;==>_CreateDefaultConfig
