@@ -330,7 +330,6 @@ Func _IsDateInTheFuture(Const ByRef $Date)
 	If @error Then
 		_DebugWrite("Error extracting date info, input: " & $Date)
 		_CreateCrashDump($Date)
-		Return False
 	EndIf
 
 	For $i = 0 To UBound($asMonthAbr) - 1 Step 1
@@ -342,11 +341,7 @@ Func _IsDateInTheFuture(Const ByRef $Date)
 
 	If $aCompanents[0] > @MDAY Or $aCompanents[1] > @MON Or $aCompanents[2] > @YEAR Then
 		If $cfg_iDateDiff > 0 Then
-			If _DateDiff("D", _NowCalcDate(), $aCompanents[2] & "/" & $aCompanents[1] & "/" & $aCompanents[0]) <= $cfg_iDateDiff Then
-				Return True
-			Else
-				Return False
-			EndIf
+			Return _DateDiff("D", _NowCalcDate(), $aCompanents[2] & "/" & $aCompanents[1] & "/" & $aCompanents[0]) <= $cfg_iDateDiff
 		Else
 			; ignore time diffrence
 			Return True
@@ -357,19 +352,11 @@ Func _IsDateInTheFuture(Const ByRef $Date)
 EndFunc   ;==>_IsDateInTheFuture
 
 Func _IsFirstLaunch()
-	If FileExists($sInstallPath) Or FileExists($sIniPath) Then
-		Return False
-	Else
-		Return True
-	EndIf
+	Return FileExists($sInstallPath) Or FileExists($sIniPath)
 EndFunc   ;==>_IsFirstLaunch
 
 Func __StringToBool(Const ByRef $sString)
-	If $sString = "True" Then
-		Return True
-	Else
-		Return False
-	EndIf
+	Return $sString = "True"
 EndFunc   ;==>__StringToBool
 
 Func _DebugWrite(Const $Dbg_text)
