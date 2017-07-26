@@ -30,8 +30,8 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert script
-#AutoIt3Wrapper_Res_Fileversion=1.0
-#AutoIt3Wrapper_Res_LegalCopyright=AMS
+#AutoIt3Wrapper_Res_Fileversion=1.0.1.0
+#AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-w 1 -w 2 -w 3 -w 4 -w 5 -w 6
 #AutoIt3Wrapper_Run_Tidy=y
@@ -42,16 +42,21 @@
 #include <Array.au3>; For debug purpose
 #include <Date.au3>
 #include <FileConstants.au3>
+#include <Misc.au3>
 #include <StringConstants.au3>
 #include <WinHTTP.au3>
 #include <WinHTTPConstants.au3>
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.0"
+Global Const $sVersion = "1.0.1.0"
 Global Const $sVersionState = " Release"
 
+Global Const $sGitHubURL = "github.com"
+Global Const $sGitHubLatestVersion = "CppAndre/RBTV-Alert/releases/latest"
+Global Const $sGitHubTagVersion = "https://github.com/CppAndre/RBTV-Alert/releases/tag/"
 Global Const $sGitHubLink = "https://github.com/CppAndre/RBTV-Alert"
+Global Const $sGitHubIssuePage = "https://github.com/CppAndre/RBTV-Alert/issues"
 
 Global Const $sUserAgentString = $sAppName & "/" & $sVersion & " (" & $sGitHubLink & ")"
 Global Const $sServerURL = "www.rocketbeans.tv"
@@ -76,19 +81,22 @@ Global $cfg_bAlertLiveOnly
 Global $cfg_bDebug
 Global $cfg_iDateDiff
 Global $cfg_bUseSSL
+Global $cfg_bCheckForUpdate
+Global $cfg_bAutoUpdate
 
 _DebugErase()
 
 _DebugWrite($sAppName & " V." & $sVersion & $sVersionState & " started")
 
+; Installation / First time launch
 If _IsFirstLaunch() And @Compiled Then
 	_DebugWrite("First time launch")
 
-	_CreateDefaultConfig()
+	_UpdateConfig()
 
 	FileCopy(@ScriptFullPath, $sInstallPath, $FC_CREATEPATH)
 
-	$response = MsgBox($MB_OK, $sAppName, "Da du dieses Programm das erste Mal startest, hier ein paar Informationen." & @CRLF & "Das Programm wurde erfolgreich installiert und eine Standardkonfigurationdatei wurde erstellt." & @CRLF & @CRLF & "Autostart: " & $sInstallPath & @CRLF & "Konfigurationsdatei: " & $sIniPath & @CRLF & @CRLF & "Viel Spaﬂ!")
+	MsgBox($MB_OK, $sAppName, "Da du dieses Programm das erste Mal startest, hier ein paar Informationen." & @CRLF & "Das Programm wurde erfolgreich installiert und eine Standardkonfigurationdatei wurde erstellt." & @CRLF & @CRLF & "Autostart: " & $sInstallPath & @CRLF & "Konfigurationsdatei: " & $sIniPath & @CRLF & @CRLF & "Viel Spaﬂ!")
 
 	; Delayed self delete
 	Run(@ComSpec & " /c " & 'del "' & @ScriptFullPath & '"', @ScriptDir, @SW_HIDE)
@@ -97,6 +105,14 @@ EndIf
 
 _LoadConfig()
 
+; Updating
+If $cfg_bCheckForUpdate Then
+	_CheckForUpdate()
+EndIf
+
+_CheckInstalledVersion()
+
+; Getting the actual data
 $aShows = _GetWochenPlan()
 If $aShows = -1 Then
 	_DebugWrite("Invalid data from _GetWochenPlan()")
@@ -107,7 +123,7 @@ $sAlertString = ""
 
 For $i = 0 To UBound($aShows) - 1 Step 1
 	For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
-		If StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) And _IsDateInTheFuture($aShows[$i][$eDate]) Then
+		If StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j]) And _IsDateInTheFuture($aShows[$i][$eDate]) Then
 			If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
 				$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
 				_DebugWrite("Event: iteration=" & $i & " Name=" & $aShows[$i][$eName] & " Game=" & $aShows[$i][$eGame] & " WeekDay=" & $aShows[$i][$eWeekDay] & " Date=" & $aShows[$i][$eDate] & " Time=" & $aShows[$i][$eTime] & " Duration=" & $aShows[$i][$eTimeSpan] & " Info=" & $aShows[$i][$eInfo])
@@ -190,7 +206,7 @@ Func _GetWochenPlan()
 	$aNextWeekNum = StringRegExp($vRequestNextWeek, '(?i)(?s)<h2>Woche (\d+)</h2>', $STR_REGEXPARRAYGLOBALMATCH)
 
 	If IsArray($aNextWeekNum) Then
-		; if they have diffrent week numbers, ew. are for diffrent weeks, join the together and handle them both
+		; if they have diffrent week numbers, ew. are for diffrent weeks, join them together and handle them both
 		If $iWeekNumber < $aNextWeekNum[0] Then
 			_DebugWrite("Got next week data")
 			$vRequest &= $vRequestNextWeek
@@ -266,25 +282,142 @@ Func _GetShowStatus(Const ByRef $sText)
 	EndIf
 EndFunc   ;==>_GetShowStatus
 
+Func _CheckForUpdate()
+	_DebugWrite("Checking for updates")
+
+	; Open WinHTTP with specific User Agent String
+	Local $vOpen = _WinHttpOpen($sUserAgentString)
+	If @error Then
+		_DebugWrite("Error Opening WinHTTP Handle")
+		Return -1
+	EndIf
+
+	; Connect to Server
+	Local $vConnect
+	If $cfg_bUseSSL Then
+		; If we use SSL Encryption connect to default HTTPS Port (443)
+		$vConnect = _WinHttpConnect($vOpen, $sGitHubURL, $INTERNET_DEFAULT_HTTPS_PORT)
+	Else
+		; Else Connect to default HTTP Port (80)
+		$vConnect = _WinHttpConnect($vOpen, $sGitHubURL, $INTERNET_DEFAULT_HTTP_PORT)
+	EndIf
+	If @error Then
+		_DebugWrite("Error Opening WinHTTPConnect Handle")
+		Return -1
+	EndIf
+
+	; Get the data from the Server
+	Local $vRequest
+	If $cfg_bUseSSL Then
+		$vRequest = _WinHttpSimpleSSLRequest($vConnect, "GET", $sGitHubLatestVersion)
+	Else
+		$vRequest = _WinHttpSimpleRequest($vConnect, "GET", $sGitHubLatestVersion)
+	EndIf
+	If @error Then
+		_DebugWrite("Unable To Read URL")
+		Return -1
+	EndIf
+
+	Local $aLatestVersion = StringRegExp($vRequest, '(?i)<a href="/CppAndre/RBTV-Alert/tree/(.+)" class="css-truncate">', $STR_REGEXPARRAYGLOBALMATCH)
+	_DebugWrite("This version: " & $sVersion & " most recent version: " & $aLatestVersion[0])
+
+	Local $iComp = _VersionCompare($sVersion, $aLatestVersion[0])
+	If $iComp == -1 Then
+		_DebugWrite("Update available")
+
+		If $cfg_bAutoUpdate Then
+			_DebugWrite("Auto updating")
+
+			Local $aDownloadLink = StringRegExp($vRequest, '(?i)<a href="/(CppAndre/RBTV-Alert/releases/download/.+/.+\.exe)" rel="nofollow">', $STR_REGEXPARRAYGLOBALMATCH)
+
+			; Download the latest version
+			Local $vDownload
+			If $cfg_bUseSSL Then
+				$vDownload = _WinHttpSimpleSSLRequest($vConnect, "GET", $aDownloadLink[0])
+			Else
+				$vDownload = _WinHttpSimpleRequest($vConnect, "GET", $aDownloadLink[0])
+			EndIf
+			If @error Then
+				_DebugWrite("Unable to download file")
+				Return -1
+			EndIf
+
+			Local $sPath = @TempDir & "\" & $sAppName & "-" & $aLatestVersion[0] & ".exe"
+
+			Local $fHandle = FileOpen($sPath, $FO_OVERWRITE + $FO_CREATEPATH + $FO_BINARY)
+			FileWrite($fHandle, $vDownload)
+			FileClose($fHandle)
+
+			_DebugWrite("Successfully downloaded new version to: " & $sPath)
+
+			Run($sPath, @ScriptDir, @SW_SHOW)
+
+			Exit 1
+		Else
+			Local $iResponse = MsgBox($MB_YESNO, $sAppName, "A new version (" & $aLatestVersion[0] & ") is available!" & @CRLF & "Do you wish do proceed to the download page now?")
+
+			If $iResponse == $IDYES Then
+				_DebugWrite("Opened download page")
+				ShellExecute($sGitHubTagVersion & $aLatestVersion[0])
+			EndIf
+		EndIf
+	Else
+		_DebugWrite("User already has the newest version")
+	EndIf
+EndFunc   ;==>_CheckForUpdate
+
+Func _CheckInstalledVersion()
+	Local $sFileVersion = FileGetVersion($sInstallPath, $FV_FILEVERSION)
+
+	_DebugWrite(" This version: " & $sVersion & "Installed version: " & $sFileVersion)
+
+	If _VersionCompare($sFileVersion, $sVersion) == -1 Then
+		_DebugWrite("Updating installed version")
+
+		FileCopy(@ScriptFullPath, $sInstallPath, $FC_OVERWRITE + $FC_CREATEPATH)
+
+		_UpdateConfig()
+
+		; Start the program
+		Run($sInstallPath)
+
+		; Delayed self delete
+		Run(@ComSpec & " /c " & 'del "' & @ScriptFullPath & '"', @ScriptDir, @SW_HIDE)
+
+		Exit 2
+	Else
+		_DebugWrite("Installed version is up to date")
+	EndIf
+EndFunc   ;==>_CheckInstalledVersion
+
 Func _LoadConfig()
 	$cfg_bAlertLiveOnly = __StringToBool(IniRead($sIniPath, "Config", "AlertLiveOnly", "True"))
 	$cfg_asAlertNames = StringSplit(IniRead($sIniPath, "Config", "AlertNames", "Pen & Paper"), ",", $STR_ENTIRESPLIT + $STR_NOCOUNT)
 	$cfg_bDebug = __StringToBool(IniRead($sIniPath, "Config", "Debug", Not @Compiled))
 	$cfg_iDateDiff = Int(IniRead($sIniPath, "Config", "DateDiff", 3))
 	$cfg_bUseSSL = __StringToBool(IniRead($sIniPath, "Config", "UseSSL", "False"))
+	$cfg_bCheckForUpdate = __StringToBool(IniRead($sIniPath, "Config", "CheckForUpdate", "True"))
+	$cfg_bAutoUpdate = __StringToBool(IniRead($sIniPath, "Config", "AutoUpdate", "True"))
 
 	_DebugWrite("Config loaded!")
 EndFunc   ;==>_LoadConfig
 
+Func _UpdateConfig()
+	_DebugWrite("Updating config")
 
-Func _CreateDefaultConfig()
-	_DebugWrite("Creating default config")
+	_CreateIniEntry("AlertLiveOnly", "True")
+	_CreateIniEntry("AlertNames", "Pen & Paper")
+	_CreateIniEntry("DateDiff", 3)
+	_CreateIniEntry("UseSSL", "False")
+	_CreateIniEntry("CheckForUpdate", "True")
+	_CreateIniEntry("AutoUpdate", "True")
+EndFunc   ;==>_UpdateConfig
 
-	IniWrite($sIniPath, "Config", "AlertLiveOnly", "True")
-	IniWrite($sIniPath, "Config", "AlertNames", "Pen & Paper")
-	IniWrite($sIniPath, "Config", "DateDiff", 3)
-	IniWrite($sIniPath, "Config", "UseSSL", "False")
-EndFunc   ;==>_CreateDefaultConfig
+Func _CreateIniEntry(Const ByRef $sKey, $sValue)
+	If IniRead($sIniPath, "Config", $sKey, "") == "" Then
+		IniWrite($sIniPath, "Config", $sKey, $sValue)
+	EndIf
+EndFunc   ;==>_CreateIniEntry
 
 Func _CreateCrashDump(Const ByRef $sRequest)
 	Local $fHandle = FileOpen($sRootFolder & "\CrashDump-" & @YEAR & @MON & @MDAY & "-" & @HOUR & @MIN & @SEC & ".dump", $FO_OVERWRITE + $FO_CREATEPATH)
@@ -299,6 +432,8 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 	Next
 	FileWriteLine($fHandle, "$cfg_bDebug = " & String($cfg_bDebug))
 	FileWriteLine($fHandle, "$cfg_bUseSSL = " & String($cfg_bUseSSL))
+	FileWriteLine($fHandle, "$cfg_bCheckForUpdate = " & String($cfg_bCheckForUpdate))
+	FileWriteLine($fHandle, "$cfg_bAutoUpdate = " & String($cfg_bAutoUpdate))
 
 	FileWriteLine($fHandle, "") ; Blank line
 
@@ -316,7 +451,10 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 
 	_DebugWrite("Created crashdump")
 
-	MsgBox($MB_OK, $sAppName, "Massiv problem see CrashDump file!")
+	Local $iResponse = MsgBox($MB_YESNO, $sAppName, "Critical error occurred!" & @CRLF & "Please see the Crashdump file for further information." & @CRLF & @CRLF & "Drashdump: " & $sRootFolder & @CRLF & @CRLF & "Click yes to open the issue page on GitHub. The program will exit now.")
+	If $iResponse == $IDYES Then
+		ShellExecute($sGitHubIssuePage)
+	EndIf
 
 	Exit -1
 EndFunc   ;==>_CreateCrashDump
