@@ -12,7 +12,7 @@ Die folgenen Einstellungen lassen sich machen
 
 * AlertLiveOnly [True/False]: Wenn auf False gesetz wird das Script alle Wiederholungen ignorieren.
 * AlertNames: Eine liste an shows für welche er ein Alert geben soll. Mehrer Einträge sind mit einem Komma zu trennen.
-* DateDiff: Die maximale Anzahl an Tagen die das Script im Vorraus informieren soll. Wird der Wert auf 0 Gesetz wird die Vorgabe ignoriert und immer alamiert.
+* DateDiff: Die maximale Anzahl an Tagen die das Script im Vorraus informieren soll. Wird der Wert auf 0 gesetzt wird die Vorgabe ignoriert und immer alamiert.
 * UseSSL [True/False]: Nutze eine SSL Verbindung (Port 443) stat einer HTTP Verbindung (Port 80).
 * CheckForUpdate [True/False]: Überprüf beim start ob eine neuere Version vorhanden ist.
 * AutoUpdate [True/False]: Wenn ein Update verfügbar ist, ob dieses automatisch installiert werden soll.
