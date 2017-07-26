@@ -369,7 +369,7 @@ EndFunc   ;==>_CheckForUpdate
 Func _CheckInstalledVersion()
 	Local $sFileVersion = FileGetVersion($sInstallPath, $FV_FILEVERSION)
 
-	_DebugWrite(" This version: " & $sVersion & "Installed version: " & $sFileVersion)
+	_DebugWrite("This version: " & $sVersion & "Installed version: " & $sFileVersion)
 
 	If _VersionCompare($sFileVersion, $sVersion) == -1 Then
 		_DebugWrite("Updating installed version")
