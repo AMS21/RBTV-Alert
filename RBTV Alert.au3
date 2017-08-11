@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert script
-#AutoIt3Wrapper_Res_Fileversion=1.0.1.0
+#AutoIt3Wrapper_Res_Fileversion=1.1.1
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-w 1 -w 2 -w 3 -w 4 -w 5 -w 6
@@ -49,14 +49,14 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.0.1.0"
+Global Const $sVersion = "1.1.1"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
 Global Const $sGitHubLatestVersion = "CppAndre/RBTV-Alert/releases/latest"
-Global Const $sGitHubTagVersion = "https://github.com/CppAndre/RBTV-Alert/releases/tag/"
 Global Const $sGitHubLink = "https://github.com/CppAndre/RBTV-Alert"
-Global Const $sGitHubIssuePage = "https://github.com/CppAndre/RBTV-Alert/issues"
+Global Const $sGitHubIssuePage = $sGitHubLink & "/issues"
+Global Const $sGitHubTagVersion = $sGitHubLink & "/releases/tag/"
 
 Global Const $sUserAgentString = $sAppName & "/" & $sVersion & " (" & $sGitHubLink & ")"
 Global Const $sServerURL = "www.rocketbeans.tv"
@@ -213,9 +213,6 @@ Func _GetWochenPlan()
 		Else
 			_DebugWrite("No next week data")
 		EndIf
-	Else
-		_DebugWrite("Error getting week number of next week")
-		_CreateCrashDump($vRequestNextWeek)
 	EndIf
 
 	Local $aArrayResult[0][$eMaxItems]
@@ -233,32 +230,65 @@ Func _GetWochenPlan()
 			If Not @error Then
 				$sCurrentDay = $aDayInfo[0]
 				$sCurrentDate = $aDayInfo[1]
+
+				If $cfg_bDebug Then
+					_DebugWrite("Day: " & $sCurrentDay)
+					_DebugWrite("Date: " & $sCurrentDate)
+				EndIf
 			Else
 				_DebugWrite("Failed to get date info at iteration: " & $i)
-				_CreateCrashDump($vRequest)
+				_DebugWrite($aArray[$i])
+				_CreateCrashDump($aArray[$i])
 			EndIf
 
-			$aShows = StringRegExp($aArray[$i], '(?i)(?s)<div id="show-" class="show">.*?<span class="scheduleTime">(.*?)</span>.*?<h4>(.*?)</h4>.*?<span class="game">(.*?)</span>.*?<div class="showInfo">(.*?)<span class="showDuration">(.*?)</span>.*?</div>.*?</div>.*?<span class="clear"></span>.*?</div>', $STR_REGEXPARRAYGLOBALMATCH)
-			; 0 = ScheduleTime
-			; 1 = Show Name
-			; 2 = Game Name
-			; 3 = ShowInfo not plain (live, premiere, none)
-			; 4 = Duration
-
+			Local $aShows = StringSplit($aArray[$i], '<div id="show-" class="show">', $STR_ENTIRESPLIT)
 			If @error Then
-				_CreateCrashDump($vRequest)
+				_DebugWrite("Unable to get shows at iteration: " & $i & " Day: " & $sCurrentDay & " Date: " & $sCurrentDate)
+				_CreateCrashDump($aArray[$i])
 			EndIf
 
-			For $j = 0 To UBound($aShows) - 1 Step 5
-				ReDim $aArrayResult[UBound($aArrayResult) + 1][$eMaxItems]
+			If $cfg_bDebug Then
+				_DebugWrite("This day has " & $aShows[0] - 1 & " Shows")
+			EndIf
 
+			ReDim $aArrayResult[UBound($aArrayResult) + $aShows[0] - 1][$eMaxItems]
+
+			; Iterate over every Show
+			For $j = 2 To UBound($aShows) - 1 Step 1
 				$aArrayResult[$iCount][$eDate] = $sCurrentDate
 				$aArrayResult[$iCount][$eWeekDay] = $sCurrentDay
-				$aArrayResult[$iCount][$eTime] = $aShows[$j]
-				$aArrayResult[$iCount][$eName] = $aShows[$j + 1]
-				$aArrayResult[$iCount][$eGame] = $aShows[$j + 2]
-				$aArrayResult[$iCount][$eInfo] = _GetShowStatus($aShows[$j + 3])
-				$aArrayResult[$iCount][$eTimeSpan] = $aShows[$j + 4]
+
+				Local $aTime = StringRegExp($aShows[$j], '(?i)<span class="scheduleTime">(.*?)</span>', $STR_REGEXPARRAYGLOBALMATCH)
+				If @error Then
+					_DebugWarning("Show has no shedule time!")
+				Else
+					$aArrayResult[$iCount][$eTime] = $aTime[0]
+				EndIf
+
+				; Show Name
+				Local $aName = StringRegExp($aShows[$j], '(?i)<h4>(.*?)</h4>', $STR_REGEXPARRAYGLOBALMATCH)
+				If @error Then
+					_DebugWarning("Show has no name!")
+				Else
+					$aArrayResult[$iCount][$eName] = $aName[0]
+				EndIf
+
+				; Game Name
+				Local $aGameName = StringRegExp($aShows[$j], '(?i)<span class="game">(.*?)</span>', $STR_REGEXPARRAYGLOBALMATCH)
+				If @error Then
+					_DebugWrite("The show: '" & $aArrayResult[$iCount][$eName] & "' has no game!")
+				Else
+					$aArrayResult[$iCount][$eGame] = $aGameName[0]
+				EndIf
+
+				; Show Info and duration
+				Local $aInfoDur = StringRegExp($aShows[$j], '(?i)(?s)<div class="showInfo">(.*?)<span class="showDuration">(.*?)</span>', $STR_REGEXPARRAYGLOBALMATCH)
+				If @error Then
+					_DebugWarning("Unable to get show info and duration from '" & $aArrayResult[$iCount][$eName] & "'!")
+				Else
+					$aArrayResult[$iCount][$eInfo] = _GetShowStatus($aInfoDur[0])
+					$aArrayResult[$iCount][$eTimeSpan] = $aInfoDur[1]
+				EndIf
 
 				$iCount += 1
 			Next
@@ -269,6 +299,7 @@ Func _GetWochenPlan()
 	EndIf
 
 	_DebugWrite("Total Number of shows found: " & UBound($aArrayResult))
+
 	Return $aArrayResult
 EndFunc   ;==>_GetWochenPlan
 
@@ -369,7 +400,7 @@ EndFunc   ;==>_CheckForUpdate
 Func _CheckInstalledVersion()
 	Local $sFileVersion = FileGetVersion($sInstallPath, $FV_FILEVERSION)
 
-	_DebugWrite("This version: " & $sVersion & "Installed version: " & $sFileVersion)
+	_DebugWrite("This version: " & $sVersion & " Installed version: " & $sFileVersion)
 
 	If _VersionCompare($sFileVersion, $sVersion) == -1 Then
 		_DebugWrite("Updating installed version")
@@ -496,6 +527,10 @@ EndFunc   ;==>_IsFirstLaunch
 Func __StringToBool(Const ByRef $sString)
 	Return $sString = "True"
 EndFunc   ;==>__StringToBool
+
+Func _DebugWarning(Const ByRef $sDbgText)
+	_DebugWrite("[Warning] " & $sDbgText)
+EndFunc   ;==>_DebugWarning
 
 Func _DebugWrite(Const ByRef $sDbgText)
 	Local $fHandle = FileOpen($sDebugLogPath, $FO_APPEND + $FO_CREATEPATH)
