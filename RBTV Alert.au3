@@ -49,7 +49,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.1.1"
+Global Const $sVersion = "1.1.2"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
@@ -123,7 +123,7 @@ $sAlertString = ""
 
 For $i = 0 To UBound($aShows) - 1 Step 1
 	For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
-		If StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j]) And _IsDateInTheFuture($aShows[$i][$eDate]) Then
+		If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate]) Then
 			If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
 				$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
 				_DebugWrite("Event: iteration=" & $i & " Name=" & $aShows[$i][$eName] & " Game=" & $aShows[$i][$eGame] & " WeekDay=" & $aShows[$i][$eWeekDay] & " Date=" & $aShows[$i][$eDate] & " Time=" & $aShows[$i][$eTime] & " Duration=" & $aShows[$i][$eTimeSpan] & " Info=" & $aShows[$i][$eInfo])
@@ -224,7 +224,6 @@ Func _GetWochenPlan()
 
 	If Not @error Then
 		For $i = 0 To UBound($aArray) - 1 Step 1
-
 			; Get Day Info like Date and Date name
 			$aDayInfo = StringRegExp($aArray[$i], '(?i)(?s)<div class="dateHeader">.*?<h3>(.*?)</h3><span>(.*?)</span>.*?</div>', $STR_REGEXPARRAYGLOBALMATCH)
 			If Not @error Then
@@ -490,27 +489,27 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 	Exit -1
 EndFunc   ;==>_CreateCrashDump
 
-Func _IsDateInTheFuture(Const ByRef $Date)
-	Local $aCompanents = StringRegExp($Date, '(?i)(\d+)\.\s*(.*?)\s*(\d+)', $STR_REGEXPARRAYGLOBALMATCH)
+Func _IsDateInTheFuture(Const ByRef $sDate)
+	Local $aComponents = StringRegExp($sDate, '(?i)(\d+)\.\s*(.*?)\s*(\d+)', $STR_REGEXPARRAYGLOBALMATCH)
 	; 0 = Day
 	; 1 = Month (3 letters abr.)
 	; 2 = year
 
 	If @error Then
-		_DebugWrite("Error extracting date info, input: " & $Date)
-		_CreateCrashDump($Date)
+		_DebugWrite("Error extracting date info, input: " & $sDate)
+		_CreateCrashDump($sDate)
 	EndIf
 
 	For $i = 0 To UBound($asMonthAbr) - 1 Step 1
-		If $aCompanents[1] = $asMonthAbr[$i] Then
-			$aCompanents[1] = $i + 1 ; +1 because our array starts with 0, but our month with 1
+		If $aComponents[1] = $asMonthAbr[$i] Then
+			$aComponents[1] = $i + 1 ; +1 because our array starts with 0, but our month with 1
 			ExitLoop
 		EndIf
 	Next
 
-	If $aCompanents[0] > @MDAY Or $aCompanents[1] > @MON Or $aCompanents[2] > @YEAR Then
+	If $aComponents[0] >= @MDAY Or $aComponents[1] > @MON Or $aComponents[2] > @YEAR Then
 		If $cfg_iDateDiff > 0 Then
-			Return _DateDiff("D", _NowCalcDate(), $aCompanents[2] & "/" & $aCompanents[1] & "/" & $aCompanents[0]) <= $cfg_iDateDiff
+			Return _DateDiff("D", _NowCalcDate(), $aComponents[2] & "/" & $aComponents[1] & "/" & $aComponents[0]) <= $cfg_iDateDiff
 		Else
 			; ignore time diffrence
 			Return True
