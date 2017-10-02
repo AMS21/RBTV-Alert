@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert script
-#AutoIt3Wrapper_Res_Fileversion=1.1.1
+#AutoIt3Wrapper_Res_Fileversion=1.1.2
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-w 1 -w 2 -w 3 -w 4 -w 5 -w 6
@@ -133,7 +133,7 @@ For $i = 0 To UBound($aShows) - 1 Step 1
 Next
 
 If $sAlertString <> "" Then
-	MsgBox($MB_OK, $sAppName, "Upcoming Event!" & $sAlertString)
+	MsgBox($MB_OK, $sAppName, "Upcomming Event!" & $sAlertString)
 Else
 	_DebugWrite("No mentionable event found")
 EndIf
