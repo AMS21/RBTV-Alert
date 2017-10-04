@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert script
-#AutoIt3Wrapper_Res_Fileversion=1.1.2
+#AutoIt3Wrapper_Res_Fileversion=1.2.1
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-w 1 -w 2 -w 3 -w 4 -w 5 -w 6
@@ -49,7 +49,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.1.2"
+Global Const $sVersion = "1.2.1"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
@@ -68,9 +68,10 @@ Global Const $sWochenPlanSubURLNext = $sWochenPlanSubURL & "&" & $sParamNextWeek
 Global Const $sRootFolder = @AppDataDir & "\" & $sAppName
 Global Const $sIniPath = $sRootFolder & "\Config.ini"
 Global Const $sDebugLogPath = $sRootFolder & "\Debug.log"
+Global Const $sRequestLogPath = $sRootFolder & "\Request.htm"
 Global Const $sInstallPath = @StartupDir & "\" & $sAppName & ".exe"
 
-Global Const $asMonthAbr[] = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
+Global Const $asMonthAbr[] = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 Global Enum $eWeekDay = 0, $eDate, $eName, $eGame, $eTime, $eTimeSpan, $eInfo, $eMaxItems
 
@@ -123,10 +124,10 @@ $sAlertString = ""
 
 For $i = 0 To UBound($aShows) - 1 Step 1
 	For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
-		If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate]) Then
+		If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate], $aShows[$i][$eTime]) Then
 			If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
 				$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
-				_DebugWrite("Event: iteration=" & $i & " Name=" & $aShows[$i][$eName] & " Game=" & $aShows[$i][$eGame] & " WeekDay=" & $aShows[$i][$eWeekDay] & " Date=" & $aShows[$i][$eDate] & " Time=" & $aShows[$i][$eTime] & " Duration=" & $aShows[$i][$eTimeSpan] & " Info=" & $aShows[$i][$eInfo])
+				_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eTimeSpan] & "' Info='" & $aShows[$i][$eInfo] & "'")
 			EndIf
 		EndIf
 	Next
@@ -144,7 +145,7 @@ Func _GetWochenPlan()
 	; Open WinHTTP with specific User Agent String
 	Local $vOpen = _WinHttpOpen($sUserAgentString)
 	If @error Then
-		_DebugWrite("Error Opening WinHTTP Handle")
+		_DebugWrite("Error Opening WinHTTP Handle. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -158,7 +159,7 @@ Func _GetWochenPlan()
 		$vConnect = _WinHttpConnect($vOpen, $sServerURL, $INTERNET_DEFAULT_HTTP_PORT)
 	EndIf
 	If @error Then
-		_DebugWrite("Error Opening WinHTTPConnect Handle")
+		_DebugWrite("Error Opening WinHTTPConnect Handle. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -170,7 +171,7 @@ Func _GetWochenPlan()
 		$vRequest = _WinHttpSimpleRequest($vConnect, "GET", $sWochenPlanSubURL)
 	EndIf
 	If @error Then
-		_DebugWrite("Unable To Read URL")
+		_DebugWrite("Unable to get this weeks plan. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -182,18 +183,19 @@ Func _GetWochenPlan()
 		$vRequestNextWeek = _WinHttpSimpleRequest($vConnect, "GET", $sWochenPlanSubURLNext)
 	EndIf
 	If @error Then
-		_DebugWrite("Unable To Read URL")
+		_DebugWrite("Unable to get next weeks plan. @error=" & @error)
 		Return -1
 	EndIf
 
 	; Debug
 	If $cfg_bDebug Then
-		FileDelete("Page.htm")
-		FileWrite("Page.htm", $vRequest)
+		Local $fHandle = FileOpen($sRequestLogPath, $FO_OVERWRITE + $FO_CREATEPATH)
+		FileWrite($fHandle, $vRequest)
+		FileClose($fHandle)
 	EndIf
 
 	; Get week numbers
-	$aCurrentWeekNum = StringRegExp($vRequest, '(?i)(?s)<h2>Woche (\d+)</h2>', $STR_REGEXPARRAYGLOBALMATCH)
+	Local $aCurrentWeekNum = StringRegExp($vRequest, '(?i)(?s)<h2>Woche (\d+)</h2>', $STR_REGEXPARRAYGLOBALMATCH)
 
 	If Not @error Then
 		$iWeekNumber = $aCurrentWeekNum[0]
@@ -203,7 +205,7 @@ Func _GetWochenPlan()
 		_CreateCrashDump($vRequest)
 	EndIf
 
-	$aNextWeekNum = StringRegExp($vRequestNextWeek, '(?i)(?s)<h2>Woche (\d+)</h2>', $STR_REGEXPARRAYGLOBALMATCH)
+	Local $aNextWeekNum = StringRegExp($vRequestNextWeek, '(?i)(?s)<h2>Woche (\d+)</h2>', $STR_REGEXPARRAYGLOBALMATCH)
 
 	If IsArray($aNextWeekNum) Then
 		; if they have diffrent week numbers, ew. are for diffrent weeks, join them together and handle them both
@@ -231,8 +233,8 @@ Func _GetWochenPlan()
 				$sCurrentDate = $aDayInfo[1]
 
 				If $cfg_bDebug Then
-					_DebugWrite("Day: " & $sCurrentDay)
-					_DebugWrite("Date: " & $sCurrentDate)
+					_DebugWrite("Day: '" & $sCurrentDay & "'")
+					_DebugWrite("Date: '" & $sCurrentDate & "'")
 				EndIf
 			Else
 				_DebugWrite("Failed to get date info at iteration: " & $i)
@@ -242,7 +244,7 @@ Func _GetWochenPlan()
 
 			Local $aShows = StringSplit($aArray[$i], '<div id="show-" class="show">', $STR_ENTIRESPLIT)
 			If @error Then
-				_DebugWrite("Unable to get shows at iteration: " & $i & " Day: " & $sCurrentDay & " Date: " & $sCurrentDate)
+				_DebugWrite("Unable to get shows at iteration: '" & $i & "' Day: '" & $sCurrentDay & "' Date: '" & $sCurrentDate & "'")
 				_CreateCrashDump($aArray[$i])
 			EndIf
 
@@ -261,6 +263,7 @@ Func _GetWochenPlan()
 				If @error Then
 					_DebugWarning("Show has no shedule time!")
 				Else
+					_SanitizeString($aTime[0])
 					$aArrayResult[$iCount][$eTime] = $aTime[0]
 				EndIf
 
@@ -269,6 +272,7 @@ Func _GetWochenPlan()
 				If @error Then
 					_DebugWarning("Show has no name!")
 				Else
+					_SanitizeString($aName[0])
 					$aArrayResult[$iCount][$eName] = $aName[0]
 				EndIf
 
@@ -277,6 +281,7 @@ Func _GetWochenPlan()
 				If @error Then
 					_DebugWrite("The show: '" & $aArrayResult[$iCount][$eName] & "' has no game!")
 				Else
+					_SanitizeString($aGameName[0])
 					$aArrayResult[$iCount][$eGame] = $aGameName[0]
 				EndIf
 
@@ -285,6 +290,7 @@ Func _GetWochenPlan()
 				If @error Then
 					_DebugWarning("Unable to get show info and duration from '" & $aArrayResult[$iCount][$eName] & "'!")
 				Else
+					_SanitizeString($aInfoDur[1])
 					$aArrayResult[$iCount][$eInfo] = _GetShowStatus($aInfoDur[0])
 					$aArrayResult[$iCount][$eTimeSpan] = $aInfoDur[1]
 				EndIf
@@ -318,7 +324,7 @@ Func _CheckForUpdate()
 	; Open WinHTTP with specific User Agent String
 	Local $vOpen = _WinHttpOpen($sUserAgentString)
 	If @error Then
-		_DebugWrite("Error Opening WinHTTP Handle")
+		_DebugWrite("Error Opening WinHTTP Handle. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -332,7 +338,7 @@ Func _CheckForUpdate()
 		$vConnect = _WinHttpConnect($vOpen, $sGitHubURL, $INTERNET_DEFAULT_HTTP_PORT)
 	EndIf
 	If @error Then
-		_DebugWrite("Error Opening WinHTTPConnect Handle")
+		_DebugWrite("Error Opening WinHTTPConnect Handle. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -344,7 +350,7 @@ Func _CheckForUpdate()
 		$vRequest = _WinHttpSimpleRequest($vConnect, "GET", $sGitHubLatestVersion)
 	EndIf
 	If @error Then
-		_DebugWrite("Unable To Read URL")
+		_DebugWrite("Unable to get the following webpage: '" & $sGitHubLatestVersion & "'. @error=" & @error)
 		Return -1
 	EndIf
 
@@ -368,7 +374,7 @@ Func _CheckForUpdate()
 				$vDownload = _WinHttpSimpleRequest($vConnect, "GET", $aDownloadLink[0])
 			EndIf
 			If @error Then
-				_DebugWrite("Unable to download file")
+				_DebugWrite("Unable to download the file. @error=" & @error)
 				Return -1
 			EndIf
 
@@ -378,7 +384,7 @@ Func _CheckForUpdate()
 			FileWrite($fHandle, $vDownload)
 			FileClose($fHandle)
 
-			_DebugWrite("Successfully downloaded new version to: " & $sPath)
+			_DebugWrite("Successfully downloaded new version to: '" & $sPath & "'")
 
 			Run($sPath, @ScriptDir, @SW_SHOW)
 
@@ -428,6 +434,10 @@ Func _LoadConfig()
 	$cfg_bUseSSL = __StringToBool(IniRead($sIniPath, "Config", "UseSSL", "False"))
 	$cfg_bCheckForUpdate = __StringToBool(IniRead($sIniPath, "Config", "CheckForUpdate", "True"))
 	$cfg_bAutoUpdate = __StringToBool(IniRead($sIniPath, "Config", "AutoUpdate", "True"))
+
+	For $i = 0 To UBound($cfg_asAlertNames) - 1 Step 1
+		_SanitizeString($cfg_asAlertNames[$i])
+	Next
 
 	_DebugWrite("Config loaded!")
 EndFunc   ;==>_LoadConfig
@@ -481,7 +491,7 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 
 	_DebugWrite("Created crashdump")
 
-	Local $iResponse = MsgBox($MB_YESNO, $sAppName, "Critical error occurred!" & @CRLF & "Please see the Crashdump file for further information." & @CRLF & @CRLF & "Drashdump: " & $sRootFolder & @CRLF & @CRLF & "Click yes to open the issue page on GitHub. The program will exit now.")
+	Local $iResponse = MsgBox($MB_YESNO, $sAppName, "Critical error occurred!" & @CRLF & "Please see the Crashdump file for further information." & @CRLF & @CRLF & "Crashdump: " & $sRootFolder & @CRLF & @CRLF & "Click yes to open the issue page on GitHub. The program will exit now.")
 	If $iResponse == $IDYES Then
 		ShellExecute($sGitHubIssuePage)
 	EndIf
@@ -489,14 +499,14 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 	Exit -1
 EndFunc   ;==>_CreateCrashDump
 
-Func _IsDateInTheFuture(Const ByRef $sDate)
+Func _IsDateInTheFuture(Const ByRef $sDate, Const ByRef $sTime)
 	Local $aComponents = StringRegExp($sDate, '(?i)(\d+)\.\s*(.*?)\s*(\d+)', $STR_REGEXPARRAYGLOBALMATCH)
 	; 0 = Day
-	; 1 = Month (3 letters abr.)
-	; 2 = year
+	; 1 = Month (3 letters abr.) see $asMonthAbr
+	; 2 = Year
 
 	If @error Then
-		_DebugWrite("Error extracting date info, input: " & $sDate)
+		_DebugWrite("Error extracting date info, input: '" & $sDate & "'")
 		_CreateCrashDump($sDate)
 	EndIf
 
@@ -508,16 +518,23 @@ Func _IsDateInTheFuture(Const ByRef $sDate)
 	Next
 
 	If $aComponents[0] >= @MDAY Or $aComponents[1] > @MON Or $aComponents[2] > @YEAR Then
+		Local $iDateDiff = _DateDiff("h", _NowCalc(), $aComponents[2] & "/" & $aComponents[1] & "/" & $aComponents[0] & " " & $sTime)
+
 		If $cfg_iDateDiff > 0 Then
-			Return _DateDiff("D", _NowCalcDate(), $aComponents[2] & "/" & $aComponents[1] & "/" & $aComponents[0]) <= $cfg_iDateDiff
+			Return $iDateDiff > 0 And $iDateDiff <= $cfg_iDateDiff * 24
 		Else
 			; ignore time diffrence
-			Return True
+			Return $iDateDiff > 0
 		EndIf
 	Else
 		Return False
 	EndIf
 EndFunc   ;==>_IsDateInTheFuture
+
+Func _SanitizeString(ByRef $sString)
+	$sString = StringStripWS($sString, $STR_STRIPLEADING)
+	$sString = StringStripWS($sString, $STR_STRIPTRAILING)
+EndFunc   ;==>_SanitizeString
 
 Func _IsFirstLaunch()
 	Return Not (FileExists($sInstallPath) Or FileExists($sIniPath))
