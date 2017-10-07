@@ -49,7 +49,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.3.0"
+Global Const $sVersion = "1.3.1"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
