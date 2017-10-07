@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert
-#AutoIt3Wrapper_Res_Fileversion=1.3.0
+#AutoIt3Wrapper_Res_Fileversion=1.3.1
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6
@@ -362,10 +362,25 @@ Func _CheckForUpdate()
 
 	Local $iComp = _VersionCompare($sVersion, $aLatestVersion[0])
 	If $iComp == -1 Then
-		_DebugWrite("Update available")
+		_DebugWrite("Update available!")
+
+		Local $aReleaseDate = StringRegExp($vRequest, '(?i)<relative-time datetime=".+?">(.+?)</relative-time>', $STR_REGEXPARRAYGLOBALMATCH)
+		If @error Then
+			_DebugWarning("No release date found!")
+			_CreateCrashDump($vRequest)
+		EndIf
+
+		Local $aChangeLog = StringRegExp($vRequest, '(?i)(?s)<div class="markdown-body">.*?<ul>(.+?)</ul>.*?</div>', $STR_REGEXPARRAYGLOBALMATCH)
+		If @error Then
+			_DebugWarning("No changelog found!")
+			_CreateCrashDump($vRequest)
+		Else
+			$aChangeLog = $aChangeLog[0]
+			_CleanUpdateString($aChangeLog)
+		EndIf
 
 		If $cfg_bAutoUpdate Then
-			_DebugWrite("Auto updating")
+			_DebugWrite("Auto updating!")
 
 			Local $aDownloadLink = StringRegExp($vRequest, '(?i)<a href="/(CppAndre/RBTV-Alert/releases/download/.+/.+\.exe)" rel="nofollow">', $STR_REGEXPARRAYGLOBALMATCH)
 
@@ -389,11 +404,13 @@ Func _CheckForUpdate()
 
 			_DebugWrite("Successfully downloaded new version to: '" & $sPath & "'")
 
+			MsgBox($MB_OK, $sAppName, "Successfully updated " & $sAppName & " to version " & $aLatestVersion[0] & " released " & $aReleaseDate[0] & @CRLF & @CRLF & "Changelog: " & @CRLF & $aChangeLog)
+
 			Run($sPath, @ScriptDir, @SW_SHOW)
 
 			Exit 1
 		Else
-			Local $iResponse = MsgBox($MB_YESNO, $sAppName, "A new version (" & $aLatestVersion[0] & ") is available!" & @CRLF & "Do you wish do proceed to the download page now?")
+			Local $iResponse = MsgBox($MB_YESNO, $sAppName, "A new version (" & $aLatestVersion[0] & ") of " & $sAppName & " is available!" & @CRLF & @CRLF & "Release date: " & $aReleaseDate[0] & @CRLF & "Changelog:" & @CRLF & $aChangeLog & @CRLF & @CRLF & "Do you wish to proceed to the download page now?")
 
 			If $iResponse == $IDYES Then
 				_DebugWrite("Opened download page")
@@ -404,6 +421,12 @@ Func _CheckForUpdate()
 		_DebugWrite("User already has the newest version")
 	EndIf
 EndFunc   ;==>_CheckForUpdate
+
+Func _CleanUpdateString(ByRef $sString)
+	$sString = StringReplace($sString, '<li>', '~ ')
+	$sString = StringReplace($sString, '</li>', '')
+	_SanitizeString($sString)
+EndFunc   ;==>_CleanUpdateString
 
 Func _CheckInstalledVersion()
 	Local $sFileVersion = FileGetVersion($sInstallPath, $FV_FILEVERSION)
