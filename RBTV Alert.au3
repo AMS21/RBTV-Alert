@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert
-#AutoIt3Wrapper_Res_Fileversion=1.2.2
+#AutoIt3Wrapper_Res_Fileversion=1.3.0
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Parameters=-d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6
@@ -49,7 +49,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.2.2"
+Global Const $sVersion = "1.3.0"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
@@ -73,7 +73,7 @@ Global Const $sInstallPath = @StartupDir & "\" & $sAppName & ".exe"
 
 Global Const $asMonthAbr[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
-Global Enum $eWeekDay = 0, $eDate, $eName, $eGame, $eTime, $eTimeSpan, $eInfo, $eMaxItems
+Global Enum $eWeekDay = 0, $eDate, $eName, $eGame, $eTime, $eDuration, $eInfo, $eMaxItems
 
 Global $iWeekNumber = -1
 
@@ -89,7 +89,7 @@ Main()
 
 Func Main()
 	_DebugErase()
-	_DebugWrite($sAppName & " V." & $sVersion & $sVersionState & " started")
+	_DebugWrite("RBTV Alert V." & $sVersion & $sVersionState & " started")
 
 	; Installation / First time launch
 	If _IsFirstLaunch() And @Compiled Then
@@ -128,8 +128,8 @@ Func Main()
 		For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
 			If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate], $aShows[$i][$eTime]) Then
 				If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
-					$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
-					_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eTimeSpan] & "' Info='" & $aShows[$i][$eInfo] & "'")
+					$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & " - " & _GetEndTime($aShows[$i][$eTime], $aShows[$i][$eDuration]) & @CRLF & "Duration: " & $aShows[$i][$eDuration]
+					_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eDuration] & "' Info='" & $aShows[$i][$eInfo] & "'")
 				EndIf
 			EndIf
 		Next
@@ -295,7 +295,7 @@ Func _GetWochenPlan()
 				Else
 					_SanitizeString($aInfoDur[1])
 					$aArrayResult[$iCount][$eInfo] = _GetShowStatus($aInfoDur[0])
-					$aArrayResult[$iCount][$eTimeSpan] = $aInfoDur[1]
+					$aArrayResult[$iCount][$eDuration] = $aInfoDur[1]
 				EndIf
 
 				$iCount += 1
@@ -502,6 +502,47 @@ Func _CreateCrashDump(Const ByRef $sRequest)
 	Exit -1
 EndFunc   ;==>_CreateCrashDump
 
+Func _GetEndTime(Const ByRef $sStartTime, Const ByRef $sDuration)
+	; Extract start time
+	Local $aStartTime = StringRegExp($sStartTime, '(?i)(\d+):(\d+)', $STR_REGEXPARRAYGLOBALMATCH)
+	If @error Then
+		_DebugWarning("Unable to retrive starting time information from: '" & $sStartTime & "'")
+		_CreateCrashDump($sStartTime)
+		Return -1
+	EndIf
+
+	Local $iHours = $aStartTime[0]
+	Local $iMinutes = $aStartTime[1]
+
+	Local $iHoursDuration = 0
+	Local $iMinutesDuration = 0
+
+	; Get hours of duration
+	Local $aHours = StringRegExp($sDuration, '(?i)(\d+) Std\.', $STR_REGEXPARRAYGLOBALMATCH)
+	If Not @error Then
+		$iHoursDuration = $aHours[0]
+	EndIf
+
+	; Get minutes of duration
+	Local $aMinutes = StringRegExp($sDuration, '(?i)(\d+) Min\.', $STR_REGEXPARRAYGLOBALMATCH)
+	If Not @error Then
+		$iMinutesDuration = $aMinutes[0]
+	EndIf
+
+	$iMinutes += $iMinutesDuration
+	If $iMinutes >= 60 Then
+		$iMinutes -= 60
+		$iHours += 1
+	EndIf
+
+	$iHours += $iHoursDuration
+	If $iHours >= 24 Then
+		$iHours -= 24
+	EndIf
+
+	Return StringFormat("%02d:%02d", $iHours, $iMinutes)
+EndFunc   ;==>_GetEndTime
+
 Func _IsDateInTheFuture(Const ByRef $sDate, Const ByRef $sTime)
 	Local $aComponents = StringRegExp($sDate, '(?i)(\d+)\.\s*(.*?)\s*(\d+)', $STR_REGEXPARRAYGLOBALMATCH)
 	; 0 = Day
@@ -555,6 +596,10 @@ Func _DebugWrite(Const ByRef $sDbgText)
 	Local $fHandle = FileOpen($sDebugLogPath, $FO_APPEND + $FO_CREATEPATH)
 	FileWrite($fHandle, "<" & @YEAR & "/" & @MON & "/" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC & "." & @MSEC & "> " & $sDbgText & @CRLF)
 	FileClose($fHandle)
+
+	If Not @Compiled Or $cfg_bDebug Then
+		ConsoleWrite($sDbgText & @CRLF)
+	EndIf
 EndFunc   ;==>_DebugWrite
 
 Func _DebugErase()
