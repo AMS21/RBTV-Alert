@@ -29,11 +29,11 @@
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
-#AutoIt3Wrapper_Res_Description=RBTV Alert script
-#AutoIt3Wrapper_Res_Fileversion=1.2.1
+#AutoIt3Wrapper_Res_Description=RBTV Alert
+#AutoIt3Wrapper_Res_Fileversion=1.2.2
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
-#AutoIt3Wrapper_AU3Check_Parameters=-w 1 -w 2 -w 3 -w 4 -w 5 -w 6
+#AutoIt3Wrapper_AU3Check_Parameters=-d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6
 #AutoIt3Wrapper_Run_Tidy=y
 #AutoIt3Wrapper_Run_Au3Stripper=y
 #Au3Stripper_Parameters=/pe /sf /sv /rm /rsln
@@ -49,7 +49,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.2.1"
+Global Const $sVersion = "1.2.2"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
@@ -71,7 +71,7 @@ Global Const $sDebugLogPath = $sRootFolder & "\Debug.log"
 Global Const $sRequestLogPath = $sRootFolder & "\Request.htm"
 Global Const $sInstallPath = @StartupDir & "\" & $sAppName & ".exe"
 
-Global Const $asMonthAbr[] = ["Jan", "Feb", "Mar", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+Global Const $asMonthAbr[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
 Global Enum $eWeekDay = 0, $eDate, $eName, $eGame, $eTime, $eTimeSpan, $eInfo, $eMaxItems
 
@@ -85,61 +85,64 @@ Global $cfg_bUseSSL
 Global $cfg_bCheckForUpdate
 Global $cfg_bAutoUpdate
 
-_DebugErase()
+Main()
 
-_DebugWrite($sAppName & " V." & $sVersion & $sVersionState & " started")
+Func Main()
+	_DebugErase()
+	_DebugWrite($sAppName & " V." & $sVersion & $sVersionState & " started")
 
-; Installation / First time launch
-If _IsFirstLaunch() And @Compiled Then
-	_DebugWrite("First time launch")
+	; Installation / First time launch
+	If _IsFirstLaunch() And @Compiled Then
+		_DebugWrite("First time launch")
 
-	_UpdateConfig()
+		_UpdateConfig()
 
-	FileCopy(@ScriptFullPath, $sInstallPath, $FC_CREATEPATH)
+		FileCopy(@ScriptFullPath, $sInstallPath, $FC_CREATEPATH)
 
-	MsgBox($MB_OK, $sAppName, "Da du dieses Programm das erste Mal startest, hier ein paar Informationen." & @CRLF & "Das Programm wurde erfolgreich installiert und eine Standardkonfigurationdatei wurde erstellt." & @CRLF & @CRLF & "Autostart: " & $sInstallPath & @CRLF & "Konfigurationsdatei: " & $sIniPath & @CRLF & @CRLF & "Viel Spaﬂ!")
+		MsgBox($MB_OK, $sAppName, "Da du dieses Programm das erste Mal startest, hier ein paar Informationen." & @CRLF & "Das Programm wurde erfolgreich installiert und eine Standardkonfigurationdatei wurde erstellt." & @CRLF & @CRLF & "Autostart: " & $sInstallPath & @CRLF & "Konfigurationsdatei: " & $sIniPath & @CRLF & @CRLF & "Viel Spa√ü!")
 
-	; Delayed self delete
-	Run(@ComSpec & " /c " & 'del "' & @ScriptFullPath & '"', @ScriptDir, @SW_HIDE)
-	Exit 0
-EndIf
+		; Delayed self delete
+		Run(@ComSpec & " /c " & 'del "' & @ScriptFullPath & '"', @ScriptDir, @SW_HIDE)
+		Exit 0
+	EndIf
 
-_LoadConfig()
+	_LoadConfig()
 
-; Updating
-If $cfg_bCheckForUpdate Then
-	_CheckForUpdate()
-EndIf
+	; Updating
+	If $cfg_bCheckForUpdate Then
+		_CheckForUpdate()
+	EndIf
 
-_CheckInstalledVersion()
+	_CheckInstalledVersion()
 
-; Getting the actual data
-$aShows = _GetWochenPlan()
-If $aShows = -1 Then
-	_DebugWrite("Invalid data from _GetWochenPlan()")
-	Exit -1
-EndIf
+	; Getting the actual data
+	Local $aShows = _GetWochenPlan()
+	If $aShows = -1 Then
+		_DebugWrite("Invalid data from _GetWochenPlan()")
+		Exit -1
+	EndIf
 
-$sAlertString = ""
+	Local $sAlertString = ""
 
-For $i = 0 To UBound($aShows) - 1 Step 1
-	For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
-		If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate], $aShows[$i][$eTime]) Then
-			If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
-				$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
-				_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eTimeSpan] & "' Info='" & $aShows[$i][$eInfo] & "'")
+	For $i = 0 To UBound($aShows) - 1 Step 1
+		For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
+			If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate], $aShows[$i][$eTime]) Then
+				If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
+					$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & @CRLF & "Duration: " & $aShows[$i][$eTimeSpan]
+					_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eTimeSpan] & "' Info='" & $aShows[$i][$eInfo] & "'")
+				EndIf
 			EndIf
-		EndIf
+		Next
 	Next
-Next
 
-If $sAlertString <> "" Then
-	MsgBox($MB_OK, $sAppName, "Upcomming Event!" & $sAlertString)
-Else
-	_DebugWrite("No mentionable event found")
-EndIf
+	If $sAlertString <> "" Then
+		MsgBox($MB_OK, $sAppName, "Upcomming Event!" & $sAlertString)
+	Else
+		_DebugWrite("No mentionable event found")
+	EndIf
 
-Exit 0
+	Exit 0
+EndFunc   ;==>Main
 
 Func _GetWochenPlan()
 	; Open WinHTTP with specific User Agent String
@@ -222,12 +225,12 @@ Func _GetWochenPlan()
 	Local $sCurrentDay, $sCurrentDate
 
 	; Get all days
-	$aArray = StringRegExp($vRequest, '(?i)(?s)<div class="day.*?">(.*?)\s+</div>\s+</div>\s+</div>', $STR_REGEXPARRAYGLOBALMATCH)
+	Local $aArray = StringRegExp($vRequest, '(?i)(?s)<div class="day.*?">(.*?)\s+</div>\s+</div>\s+</div>', $STR_REGEXPARRAYGLOBALMATCH)
 
 	If Not @error Then
 		For $i = 0 To UBound($aArray) - 1 Step 1
 			; Get Day Info like Date and Date name
-			$aDayInfo = StringRegExp($aArray[$i], '(?i)(?s)<div class="dateHeader">.*?<h3>(.*?)</h3><span>(.*?)</span>.*?</div>', $STR_REGEXPARRAYGLOBALMATCH)
+			Local $aDayInfo = StringRegExp($aArray[$i], '(?i)(?s)<div class="dateHeader">.*?<h3>(.*?)</h3><span>(.*?)</span>.*?</div>', $STR_REGEXPARRAYGLOBALMATCH)
 			If Not @error Then
 				$sCurrentDay = $aDayInfo[0]
 				$sCurrentDate = $aDayInfo[1]
