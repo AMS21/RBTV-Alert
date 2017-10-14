@@ -75,14 +75,14 @@ Global Const $asMonthAbr[] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "
 
 Global Enum $eWeekDay = 0, $eDate, $eName, $eGame, $eTime, $eDuration, $eInfo, $eMaxItems
 #cs
-~	$eWeekDay = [Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag] (Day of the week)
-~	$eDate = DD. MMM YYYY (The month is a 3 letter abbreviation, see $asMonthAbr)
-~	$eName = name of the show, may not be empty
-~	$eGame = The game which is being played or some other additional info, can be empty
-~	$eTime = HH:DD (The time when the show will begin)
-~	$eDuration = H Std. MM Min. (The duration in hours and minutes)
-~			   = MM Min. (The duration only in minutes obviously less than 60)
-~	$eInfo = [None, Live, Premiere] (Whether the show is live, its the first time its shown (Premiere) or neither (None))
+	~	$eWeekDay = [Montag, Dienstag, Mittwoch, Donnerstag, Freitag, Samstag, Sonntag] (Day of the week)
+	~	$eDate = DD. MMM YYYY (The month is a 3 letter abbreviation, see $asMonthAbr)
+	~	$eName = name of the show, may not be empty
+	~	$eGame = The game which is being played or some other additional info, can be empty
+	~	$eTime = HH:DD (The time when the show will begin)
+	~	$eDuration = H Std. MM Min. (The duration in hours and minutes)
+	~			   = MM Min. (The duration only in minutes obviously less than 60)
+	~	$eInfo = [None, Live, Premiere] (Whether the show is live, its the first time its shown (Premiere) or neither (None))
 #ce
 
 Global $iWeekNumber = -1
@@ -127,8 +127,6 @@ Func Main()
 
 	; Getting the actual data
 	Local $aShows = _GetWochenPlan()
-
-	_ArrayDisplay($aShows)
 
 	Local $sAlertString = ""
 
