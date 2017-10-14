@@ -33,6 +33,7 @@
 #AutoIt3Wrapper_Res_Fileversion=1.3.2
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
+#AutoIt3Wrapper_AU3Check_Stop_OnWarning=y
 #AutoIt3Wrapper_AU3Check_Parameters=-d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6
 #AutoIt3Wrapper_Run_Tidy=y
 #AutoIt3Wrapper_Run_Au3Stripper=y
