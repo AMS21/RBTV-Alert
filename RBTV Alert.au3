@@ -30,7 +30,7 @@
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert
-#AutoIt3Wrapper_Res_Fileversion=1.3.2
+#AutoIt3Wrapper_Res_Fileversion=1.3.3
 #AutoIt3Wrapper_Res_LegalCopyright=CppAndre
 #AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
 #AutoIt3Wrapper_AU3Check_Stop_OnWarning=y
@@ -50,7 +50,7 @@
 
 Global Const $sAppName = "RBTV Alert"
 
-Global Const $sVersion = "1.3.2"
+Global Const $sVersion = "1.3.3"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
@@ -134,7 +134,7 @@ Func Main()
 	For $i = 0 To UBound($aShows) - 1 Step 1
 		For $j = 0 To UBound($cfg_asAlertNames) - 1 Step 1
 			If (StringInStr($aShows[$i][$eName], $cfg_asAlertNames[$j]) Or StringInStr($aShows[$i][$eGame], $cfg_asAlertNames[$j])) And _IsDateInTheFuture($aShows[$i][$eDate], $aShows[$i][$eTime]) Then
-				If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
+				If ($cfg_bAlertLiveOnly And ($aShows[$i][$eInfo] = "Live" Or $aShows[$i][$eInfo] = "Premiere")) Or Not $cfg_bAlertLiveOnly Then
 					$sAlertString &= @CRLF & @CRLF & $aShows[$i][$eName] & " " & $aShows[$i][$eGame] & @CRLF & $aShows[$i][$eWeekDay] & ": " & $aShows[$i][$eDate] & " " & $aShows[$i][$eTime] & " - " & _GetEndTime($aShows[$i][$eTime], $aShows[$i][$eDuration]) & @CRLF & "Duration: " & $aShows[$i][$eDuration]
 					_DebugWrite("Event: iteration='" & $i & "' Name='" & $aShows[$i][$eName] & "' Game='" & $aShows[$i][$eGame] & "' WeekDay='" & $aShows[$i][$eWeekDay] & "' Date='" & $aShows[$i][$eDate] & "' Time='" & $aShows[$i][$eTime] & "' Duration='" & $aShows[$i][$eDuration] & "' Info='" & $aShows[$i][$eInfo] & "'")
 				EndIf
@@ -364,7 +364,7 @@ Func _CheckForUpdate()
 		$vRequest = _WinHttpSimpleRequest($vConnect, "GET", $sGitHubLatestVersion)
 	EndIf
 	If @error Then
-		_DebugWrite("Unable to get the following webpage: '" & $sGitHubLatestVersion & "'. @error=" & @error)
+		_DebugWrite("Unable to get the following webpage: '" & $sGitHubURL & "/" & $sGitHubLatestVersion & "'. @error=" & @error)
 		_CreateCrashDump($vRequest)
 	EndIf
 
@@ -621,8 +621,7 @@ Func _IsDateInTheFuture(Const ByRef $sDate, Const ByRef $sTime)
 EndFunc   ;==>_IsDateInTheFuture
 
 Func _SanitizeString(ByRef $sString)
-	$sString = StringStripWS($sString, $STR_STRIPLEADING)
-	$sString = StringStripWS($sString, $STR_STRIPTRAILING)
+	$sString = StringStripWS($sString, $STR_STRIPLEADING + $STR_STRIPTRAILING)
 EndFunc   ;==>_SanitizeString
 
 Func _IsFirstLaunch()
