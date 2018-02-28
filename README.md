@@ -16,8 +16,8 @@ Die folgenen Einstellungen lassen sich in der Konfigurationsdatei machen.
 Die Konfigurationsdatei benutzt das sogennante [Ini-Format](https://de.wikipedia.org/wiki/Initialisierungsdatei#Aufbau).
 
 * AlertLiveOnly [True/False]: Wenn auf True gesetz wird das Script alle Wiederholungen ignorieren.
-* AlertNames: Eine liste an shows für welche er ein Alert geben soll. Mehrer Einträge sind mit einem Komma zu trennen.
+* AlertNames: Eine Liste an shows für welche er ein Alert geben soll. Mehrer Einträge sind mit einem Komma zu trennen.
 * DateDiff: Die maximale Anzahl an Tagen die das Script im Vorraus informieren soll. Wird der Wert auf 0 gesetzt wird die Vorgabe ignoriert und immer alamiert.
 * UseSSL [True/False]: Nutze eine SSL Verbindung (Port 443) statt einer HTTP Verbindung (Port 80).
-* CheckForUpdate [True/False]: Überprüf beim start ob eine neuere Version vorhanden ist.
+* CheckForUpdate [True/False]: Überprüft beim Start ob eine neue Version vorhanden ist.
 * AutoUpdate [True/False]: Wenn ein Update verfügbar ist, ob dieses automatisch installiert werden soll.
