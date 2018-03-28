@@ -2,7 +2,7 @@
 #comments-start
 	MIT License
 
-	Copyright (c) 2017 CppAndre
+	Copyright (c) 2018 AMS21
 
 	Permission is hereby granted, free of charge, to any person obtaining a copy
 	of this software and associated documentation files (the "Software"), to deal
@@ -24,15 +24,13 @@
 #comments-end
 
 #NoTrayIcon
-#RequireAdmin
 
 #Region ;**** Directives created by AutoIt3Wrapper_GUI ****
 #AutoIt3Wrapper_UseUpx=y
 #AutoIt3Wrapper_Change2CUI=y
 #AutoIt3Wrapper_Res_Description=RBTV Alert
 #AutoIt3Wrapper_Res_Fileversion=1.3.3
-#AutoIt3Wrapper_Res_LegalCopyright=CppAndre
-#AutoIt3Wrapper_Res_requestedExecutionLevel=requireAdministrator
+#AutoIt3Wrapper_Res_LegalCopyright=AMS21
 #AutoIt3Wrapper_AU3Check_Stop_OnWarning=y
 #AutoIt3Wrapper_AU3Check_Parameters=-d -w 1 -w 2 -w 3 -w 4 -w 5 -w 6
 #AutoIt3Wrapper_Run_Tidy=y
@@ -54,8 +52,8 @@ Global Const $sVersion = "1.3.3"
 Global Const $sVersionState = " Release"
 
 Global Const $sGitHubURL = "github.com"
-Global Const $sGitHubLatestVersion = "CppAndre/RBTV-Alert/releases/latest"
-Global Const $sGitHubLink = "https://github.com/CppAndre/RBTV-Alert"
+Global Const $sGitHubLatestVersion = "AMS21/RBTV-Alert/releases/latest"
+Global Const $sGitHubLink = "https://github.com/AMS21/RBTV-Alert"
 Global Const $sGitHubIssuePage = $sGitHubLink & "/issues"
 Global Const $sGitHubTagVersion = $sGitHubLink & "/releases/tag/"
 
@@ -143,7 +141,7 @@ Func Main()
 	Next
 
 	If $sAlertString <> "" Then
-		MsgBox($MB_OK, $sAppName, "Upcomming Event!" & $sAlertString)
+		MsgBox($MB_OK, $sAppName, "Upcoming Event!" & $sAlertString)
 	Else
 		_DebugWrite("No mentionable event found")
 	EndIf
@@ -194,7 +192,6 @@ Func _GetWochenPlan()
 	EndIf
 	If @error Then
 		_DebugWrite("Unable to get next weeks plan. @error=" & @error)
-		_CreateCrashDump($vRequestNextWeek)
 	EndIf
 
 	; Debug
@@ -209,7 +206,7 @@ Func _GetWochenPlan()
 
 	If Not @error Then
 		$iWeekNumber = $aCurrentWeekNum[0]
-		_DebugWrite("Week number: " & $iWeekNumber)
+		_DebugWrite("current week number: " & $iWeekNumber)
 	Else
 		_DebugWrite("Error getting week number of current week")
 		_CreateCrashDump($vRequest)
@@ -220,11 +217,13 @@ Func _GetWochenPlan()
 	If IsArray($aNextWeekNum) Then
 		; if they have diffrent week numbers, ew. are for diffrent weeks, join them together and handle them both
 		If $iWeekNumber < $aNextWeekNum[0] Then
-			_DebugWrite("Got next week data")
+			_DebugWrite("Got next week data for week number: " & $aNextWeekNum[0])
 			$vRequest &= $vRequestNextWeek
 		Else
 			_DebugWrite("No next week data")
 		EndIf
+	Else
+		_DebugWrite("No next week data")
 	EndIf
 
 	Local $aArrayResult[0][$eMaxItems]
@@ -368,7 +367,11 @@ Func _CheckForUpdate()
 		_CreateCrashDump($vRequest)
 	EndIf
 
-	Local $aLatestVersion = StringRegExp($vRequest, '(?i)<a href="/CppAndre/RBTV-Alert/tree/(.+)" class="css-truncate">', $STR_REGEXPARRAYGLOBALMATCH)
+	Local $aLatestVersion = StringRegExp($vRequest, '(?i)<a href="/AMS21/RBTV-Alert/tree/(.+)" class="css-truncate">', $STR_REGEXPARRAYGLOBALMATCH)
+	If @error Then
+		_DebugWrite("Unable to extract latest version info")
+		_CreateCrashDump($vRequest)
+	EndIf
 	_DebugWrite("This version: " & $sVersion & " most recent version: " & $aLatestVersion[0])
 
 	Local $iComp = _VersionCompare($sVersion, $aLatestVersion[0])
@@ -393,7 +396,7 @@ Func _CheckForUpdate()
 		If $cfg_bAutoUpdate Then
 			_DebugWrite("Auto updating!")
 
-			Local $aDownloadLink = StringRegExp($vRequest, '(?i)<a href="/(CppAndre/RBTV-Alert/releases/download/.+/.+\.exe)" rel="nofollow">', $STR_REGEXPARRAYGLOBALMATCH)
+			Local $aDownloadLink = StringRegExp($vRequest, '(?i)<a href="/(AMS21/RBTV-Alert/releases/download/.+/.+\.exe)" rel="nofollow">', $STR_REGEXPARRAYGLOBALMATCH)
 
 			; Download the latest version
 			Local $vDownload
@@ -610,10 +613,10 @@ Func _IsDateInTheFuture(Const ByRef $sDate, Const ByRef $sTime)
 		Local $iDateDiff = _DateDiff("h", _NowCalc(), $aComponents[2] & "/" & $aComponents[1] & "/" & $aComponents[0] & " " & $sTime)
 
 		If $cfg_iDateDiff > 0 Then
-			Return $iDateDiff > 0 And $iDateDiff <= $cfg_iDateDiff * 24
+			Return $iDateDiff >= 0 And $iDateDiff <= $cfg_iDateDiff * 24
 		Else
 			; ignore time diffrence
-			Return $iDateDiff > 0
+			Return $iDateDiff >= 0
 		EndIf
 	Else
 		Return False
