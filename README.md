@@ -1,4 +1,4 @@
-# RBTV Alert script
+# RBTV Alert script (currently broken)
 
 Ein simples Script was sich in den Autostart Ordner kopiert und überprüft ob auf dem [Sendeplan](https://www.rocketbeans.tv/wochenplan/) eine Sendung ist die einen interessiert (Pen & Paper zum Beispiel). Die neuste Version kann [hier](https://www.github.com/CppAndre/RBTV-Alert/releases/latest) gefunden werden.
 
